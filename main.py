@@ -1,5 +1,5 @@
 import sys
-from PySide6.QtWidgets import QApplication, QMainWindow, QLabel, QLineEdit, QPushButton, QVBoxLayout, QWidget, QFrame,QToolBar,QStatusBar,QMessageBox,QDialog,QPlainTextEdit,QHBoxLayout, QComboBox
+from PySide6.QtWidgets import QApplication, QMainWindow, QLabel, QLineEdit, QPushButton, QVBoxLayout, QWidget, QFrame,QToolBar,QStatusBar,QMessageBox,QDialog,QPlainTextEdit,QHBoxLayout, QComboBox, QGridLayout,QListWidget
 from PySide6.QtCore import Qt,QSize
 from PySide6.QtGui import QColor, QFont, QScreen,QGuiApplication,QIcon,QAction,QIntValidator
 import qdarktheme
@@ -38,10 +38,13 @@ class userWindow(QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setWindowTitle("eRadcareAI - User")
-        self.resize(400, 250)
-        self.setWindowIcon(QIcon("erai.png"))
+        if gusername.lower() =="admin" :
+            self.resize(900, 270)
+        else :
+            self.resize(400,250)
+        self.setWindowIcon(QIcon("images/erai.png"))
 
-        layout = QVBoxLayout()
+        layout =  QGridLayout()
         # Create vertical frame
         vertical_frame = QFrame()
         vertical_frame.setFrameShape(QFrame.StyledPanel)
@@ -86,7 +89,7 @@ class userWindow(QDialog):
             self.disableText()
 
         vertical_frame.setLayout(vertical_layout)
-        layout.addWidget(vertical_frame)
+        layout.addWidget(vertical_frame,0,0)
 
          # Create horizontal frame
         horizontal_frame = QFrame()
@@ -102,8 +105,7 @@ class userWindow(QDialog):
 
         if gusername.lower() !="admin":
             self.add_button.setText("Save")
-            self.delete_button.setHidden(True)
-                  
+            self.delete_button.setHidden(True)                  
 
         horizontal_layout.addWidget(self.add_button)
         horizontal_layout.addWidget(self.delete_button)
@@ -112,8 +114,39 @@ class userWindow(QDialog):
         horizontal_frame.setLayout(horizontal_layout)
         layout.addWidget(horizontal_frame)
 
+        if gusername.lower() == "admin":
+            #list frame
+            # Create horizontal frame
+            list_frame = QFrame()
+            list_frame.setFrameShape(QFrame.StyledPanel)
+            list_layout = QHBoxLayout()
+
+            self.user_list = QListWidget()
+            cursor = conn.cursor()
+            cursor.execute("SELECT username from users ")  
+            stored_data = cursor.fetchone()
+            cursor.close()
+            self.user_list.addItems(list(stored_data))
+            self.user_list.itemClicked.connect(self.listclick)
+            list_layout.addWidget(self.user_list)
+            list_frame.setLayout(list_layout)
+            layout.addWidget(list_frame,0,1)
+
         self.setLayout(layout)
         self.center_window()
+
+    def listclick(self, idx: int):        
+        listname=([item.text() for item in self.user_list.selectedItems()])
+        ls = ""
+        ln = ls.join(listname)
+        print(ln)
+        self.username_input.setText(ls.join(listname))
+        cursor = conn.cursor()
+        cursor.execute("SELECT email,phone,orole FROM users WHERE username = %s ", (ln, ))  
+        stored_data = cursor.fetchone()           
+        self.eamil_input.setText(stored_data[0])
+        self.mob_input.setText(stored_data[1])
+        self.role_com.setCurrentText(stored_data[2])
 
     def adddata(self) :
 
@@ -199,6 +232,7 @@ class userWindow(QDialog):
         self.role_com.setEnabled(True)
         if gusername.lower() == "admin" :
             self.password_input.setEnabled(True)
+            self.user_list.setEnabled(False)
 
     def disableText(self):
         self.username_input.setEnabled(False)
@@ -207,6 +241,7 @@ class userWindow(QDialog):
         self.role_com.setEnabled(False)
         if gusername.lower() == "admin" :
             self.password_input.setEnabled(False)
+            self.user_list.setEnabled(True)
 
 
 class CpassWindow(QDialog):
@@ -214,7 +249,7 @@ class CpassWindow(QDialog):
         super().__init__(parent)
         self.setWindowTitle("eRadcareAI - Change Password")
         self.resize(400, 200)
-        self.setWindowIcon(QIcon("erai.png"))
+        self.setWindowIcon(QIcon("images/erai.png"))
         
         layout = QVBoxLayout()
         # Create vertical frame
@@ -319,7 +354,7 @@ class HospitalRegWindow(QDialog):
         vertical_layout.addWidget(self.add_input)
         vertical_layout.addWidget(self.lic_label )
         vertical_layout.addWidget(self.lic_input)
-        self.setWindowIcon(QIcon("erai.png"))
+        self.setWindowIcon(QIcon("images/erai.png"))
         
         vertical_frame.setLayout(vertical_layout)
         layout.addWidget(vertical_frame)
@@ -364,7 +399,7 @@ class MainWindow(QMainWindow):
         super().__init__()
 
         self.setWindowTitle('eRadcareAI')
-        self.resize(700, 600)
+        self.resize(1200, 700)
 
         label = QLabel('Welcome to eRadcareAI!', alignment=Qt.AlignCenter)
         label.setFont(QFont('Arial', 20))
@@ -375,7 +410,7 @@ class MainWindow(QMainWindow):
         layout = QVBoxLayout()
         layout.addWidget(label)
         #layout.addWidget(slabel)
-        self.setWindowIcon(QIcon("erai.png"))
+        self.setWindowIcon(QIcon("images/erai.png"))
         
         
 
@@ -383,9 +418,9 @@ class MainWindow(QMainWindow):
         toolbar.setIconSize(QSize(16,16))
         self.addToolBar(toolbar)
 
-        button_action = QAction(QIcon("hospital.png"), "", self)
-        cpass_action = QAction(QIcon("cpass.png"), "", self)
-        euser_action = QAction(QIcon("user.png"), "", self)
+        button_action = QAction(QIcon("images/hospital.png"), "", self)
+        cpass_action = QAction(QIcon("images/cpass.png"), "", self)
+        euser_action = QAction(QIcon("images/user.png"), "", self)
         button_action.setStatusTip("Hospital Registration")
         cpass_action.setStatusTip("Change your password")
         euser_action.setStatusTip("User Details")
@@ -455,7 +490,7 @@ class LoginWindow(QMainWindow):
         self.login_button = QPushButton('Login')
         self.cr_lable = QLabel("© KRSIP 2023",alignment=Qt.AlignCenter)        
         self.login_button.clicked.connect(self.login)
-        self.setWindowIcon(QIcon("erai.png"))
+        self.setWindowIcon(QIcon("images/erai.png"))
 
 
 
