@@ -9,6 +9,7 @@ import uuid
 psycopg2.extras.register_uuid()
 import re  
 
+regex = r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,7}\b'
 
 global conn
 gusername =""
@@ -80,17 +81,9 @@ class userWindow(QDialog):
             self.eamil_input.setText(stored_data[0])
             self.mob_input.setText(stored_data[1])
             self.role_com.setCurrentText(stored_data[2])
-        else :
-            self.password_label = QLabel("Password")
-            self.password_input = QLineEdit()   
-            self.password_input.setEchoMode(QLineEdit.Password)
-            vertical_layout.addWidget(self.password_label)
-            vertical_layout.addWidget(self.password_input)
-            self.disableText()
 
         vertical_frame.setLayout(vertical_layout)
         layout.addWidget(vertical_frame,0,0)
-
          # Create horizontal frame
         horizontal_frame = QFrame()
         horizontal_frame.setFrameShape(QFrame.StyledPanel)
@@ -112,7 +105,7 @@ class userWindow(QDialog):
         horizontal_layout.addWidget(self.close_button)
         
         horizontal_frame.setLayout(horizontal_layout)
-        layout.addWidget(horizontal_frame)
+        layout.addWidget(horizontal_frame,1,0)
 
         if gusername.lower() == "admin":
             #list frame
@@ -124,22 +117,118 @@ class userWindow(QDialog):
             self.user_list = QListWidget()
             cursor = conn.cursor()
             cursor.execute("SELECT username from users ")  
-            stored_data = cursor.fetchone()
+            stored_data = cursor.fetchall()            
             cursor.close()
-            self.user_list.addItems(list(stored_data))
+            for useritem in stored_data : self.user_list.addItems((useritem))
             self.user_list.itemClicked.connect(self.listclick)
             list_layout.addWidget(self.user_list)
             list_frame.setLayout(list_layout)
             layout.addWidget(list_frame,0,1)
+            self.disableText()
+
+            #update and reset button
+             # Create horizontal frame
+            updatereset_frame = QFrame()
+            updatereset_frame.setFrameShape(QFrame.StyledPanel)
+            updatereset_layout = QHBoxLayout()
+
+            self.update_button = QPushButton('Update')
+            self.reset_button = QPushButton("Reset")            
+            self.update_button.clicked.connect(self.updatedata)
+            self.reset_button.clicked.connect(self.resetpassword)
+
+            updatereset_layout.addWidget(self.update_button)
+            updatereset_layout.addWidget(self.reset_button)
+            
+        
+            updatereset_frame.setLayout(updatereset_layout)
+            layout.addWidget(updatereset_frame,1,1)
 
         self.setLayout(layout)
         self.center_window()
+        
+    def checkLic(self,num):
+            cursor = conn.cursor()
+            cursor.execute("SELECT lic FROM hospitalreg") 
+            stored_data = cursor.fetchone()
+            lic_no = stored_data[0]            
+            cursor.execute("SELECT orole FROM users WHERE orole = %s ", ("Radiation Oncologist", ))  
+            stored_data = cursor.fetchall()  
+            return ((len(stored_data)+num) > lic_no )
+           
+    def updatedata(self):         
+        allow1 =0
+        if len(self.username_input.text()) == 0 and self.update_button.text() == "Update":
+            dlg = QMessageBox.critical(self,"eRadcareAI","User name should not empty")
+            allow1=1
+            
+        if  self.username_input.text() == "admin" :
+            dlg = QMessageBox.critical(self,"eRadcareAI","User name should not   admin  ?")
+            allow1 =1
 
+        if len(self.username_input.text()) != 0 and self.update_button.text() == "Update" and allow1 == 0:          
+            self.update_button.setText("Save")
+            self.delete_button.setText("Cancel")
+            self.close_button.setEnabled(False)
+            self.reset_button.setEnabled(False)
+            self.add_button.setEnabled(False)
+            self.enableText()
+            self.username_input.setEnabled(False)
+            self.eamil_input.setFocus()
+            allow1 =1 
+        
+        if self.update_button.text() =="Save" and allow1 ==0 :       
+               
+            if len(self.eamil_input.text()) == 0 or len(self.mob_input.text()) ==0 :
+                dlg = QMessageBox.critical(self,"eRadcareAI","User details should not be empty")
+                #self.eamil_input.setFocus(True)
+                allow1 =1
+            if (re.fullmatch(regex, self.eamil_input.text())) :
+                 print("Valid mail")
+            else:
+                dlg = QMessageBox.critical(self,"eRadcareAI","The eMail address is not correct !!!")  
+                #self.eamil_input.setFocus(True)
+                allow1 =1
+            if self.checkLic(num=0) == True :
+                dlg = QMessageBox.critical(self,"eRadcareAI","Number of Lic exceeded... ")  
+                allow1 =1
+             
+            if allow1 == 0 :          
+                
+                cursor = conn.cursor()
+                cursor.execute("UPDATE users  SET username =%s ,email=%s, phone=%s ,orole=%s where username = %s " ,(self.username_input.text(),self.eamil_input.text(),self.mob_input.text(),str(self.role_com.currentText()),gusername)) 
+                conn.commit()
+                dlg = QMessageBox.information(self,"eRadcareAI","The user data updated")                 
+                cursor.close()
+                self.clearData()
+                self.add_button.setEnabled(True)
+                self.update_button.setText("Update")
+
+    def resetpassword(self):
+                print(self.username_input.text())
+                 
+                if len(self.username_input.text()) == 0  or self.username_input.text() == "admin" :
+                    dlg = QMessageBox.critical(self,"eRadcareAI","User name should not empty or admin as a username?")
+                 
+                else :
+                    dlg = QMessageBox(self)
+                    dlg.setWindowTitle("eRadcareAI!")
+                    dlg.setText("Shall I reset the password?")
+                    dlg.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
+                    dlg.setIcon(QMessageBox.Question)
+                    button = dlg.exec()
+
+                    if button == QMessageBox.Yes:
+                        cursor = conn.cursor()
+                        cursor.execute("UPDATE users  SET password=%s WHERE username = %s ", ("pass",self.username_input.text(), )) 
+                        conn.commit()
+                        cursor.close()
+                        dlg = QMessageBox.critical(self,"eRadcareAI","The password reseted")
+    
     def listclick(self, idx: int):        
         listname=([item.text() for item in self.user_list.selectedItems()])
         ls = ""
-        ln = ls.join(listname)
-        print(ln)
+        ln = ls.join(listname)         
         self.username_input.setText(ls.join(listname))
         cursor = conn.cursor()
         cursor.execute("SELECT email,phone,orole FROM users WHERE username = %s ", (ln, ))  
@@ -158,18 +247,18 @@ class userWindow(QDialog):
                 dlg = QMessageBox.critical(self,"eRadcareAI","User details should not be empty")
                 self.username_input.setFocus()
                 allow =1
+            if (re.fullmatch(regex, self.eamil_input.text())) :
+                 print("Valid mail")
+            else:
+                dlg = QMessageBox.critical(self,"eRadcareAI","eMail address is not correct")  
+                self.eamil_input.setFocus(True)
+                allow = 1
 
-            if gusername.lower == "admin" :
-                if len(self.password_input.text()) == 0 :
-                    dlg = QMessageBox.critical(self,"eRadcareAI","PassWord should not be empty")  
-                    allow = 1
-            
-            print("Mail:",re.match(r"[^@]+@[^@]+\.[^@]+", self.eamil_input.text()) )
-
-            if re.match(r"[^@]+@[^@]+\.[^@]+", self.eamil_input.text()) == False:
-                    dlg = QMessageBox.critical(self,"eRadcareAI","PassWord should not be empty")  
-                    allow =1
-
+             
+            if self.checkLic( num = 1) == True :
+                dlg = QMessageBox.critical(self,"eRadcareAI","Number of Lic exceeded... ")  
+                allow =1
+             
         if allow == 0 and self.add_button.text() == "Save"  :
             cursor = conn.cursor()
             cursor.execute("SELECT email FROM users WHERE username = %s ", (gusername, )) 
@@ -180,40 +269,81 @@ class userWindow(QDialog):
                     print ( "duplicate data")
                     dlg = QMessageBox.critical(self,"eRadcareAI", "Username Shoud be Unique" )
                 if len(stored_data) == 1 :                 
-                    cursor.execute("UPDATE users  SET username =%s ,email=%s, phone=%s ,orole=%s where username = %s " ,(self.username_input.text(),self.email_label.text(),self.mob_input.text(),str(self.role_com.currentText()),gusername)) 
+                    cursor.execute("UPDATE users  SET username =%s ,email=%s, phone=%s ,orole=%s where username = %s " ,(self.username_input.text(),self.eamil_input.text(),self.mob_input.text(),str(self.role_com.currentText()),gusername)) 
                     dlg = QMessageBox.information(self,"eRadcareAI","User Data Update")                 
                     cursor.close()
             
             if len(stored_data) == 1 and gusername.lower() == "admin" :
-                cursor.execute("INSERT INTO users( uuid,username,email,phone,orole,password) VALUES ( %s,%s,%s,%s,%s,%s)",( uuid.uuid4(),self.username_input.text(),self.eamil_input.text(),self.mob_input.text(),str(self.role_com.currentText()),self.password_input.text()))
+                passworddf = "pass"
+                cursor.execute("INSERT INTO users( uuid,username,email,phone,orole,password) VALUES ( %s,%s,%s,%s,%s,%s)",( uuid.uuid4(),self.username_input.text(),self.eamil_input.text(),self.mob_input.text(),str(self.role_com.currentText()),passworddf))
                 conn.commit()
                 cursor.close()
-                print("Added")
+                self.user_list.addItem(self.username_input.text())                              
+                dlg = QMessageBox.information(self,"eRadcareAI","The new user data Added")                
+                allow =2
                 self.clearData()
-                dlg = QMessageBox.information(self,"eRadcareAI","New user Added")
+
                 
 
-        if self.add_button.text() == "Add":
+        if  allow !=2 and self.add_button.text() == "Add":
             self.add_button.setText("Save")
             self.delete_button.setText("Cancel")
             self.close_button.setEnabled(False)
+            self.update_button.setEnabled(False)
+            self.reset_button.setEnabled(False)
             self.enableText()
             self.username_input.setFocus()
+            self.clearText()
 
-    def clearData(self):
-        self.add_button.setText("Add")
-        self.delete_button.setText("Delete")
-        self.close_button.setEnabled(True)
+    def clearData(self) :
+                self.clearText()
+                self.add_button.setText("Add")
+                self.delete_button.setText("Delete")
+                self.update_button.setEnabled(True)
+                self.reset_button.setEnabled(True)
+                self.close_button.setEnabled(True)
+                self.disableText()
+
+    def clearText(self):
         self.username_input.setText("")
         self.eamil_input.setText("")
         self.mob_input.setText("")
         self.role_com.setCurrentText("")
-        self.password_input.setText("")
-        self.disableText()
+
+
+     
 
     def deletedata(self):
+        allow =0
         if self.delete_button.text() =="Cancel" :
-            self.clearData()
+            self.clearData() 
+            allow=1
+        if allow == 0 and self.delete_button.text() == "Delete" :
+            if len(self.username_input.text()) == 0:
+                dlg = QMessageBox.critical(self,"eRadcareAI","User name should not empty")
+            else :
+                dlg = QMessageBox(self)
+                dlg.setWindowTitle("eRadcareAI!")
+                dlg.setText("Shall I delete?")
+                dlg.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
+                dlg.setIcon(QMessageBox.Question)
+                button = dlg.exec()
+
+                if button == QMessageBox.Yes:
+                    cursor = conn.cursor()
+                    cursor.execute("Delete FROM users WHERE username = %s ", (self.username_input.text(), )) 
+                    conn.commit()
+                    cursor.close()
+                    dlg = QMessageBox.critical(self,"eRadcareAI","User deleted")
+                    cursor = conn.cursor()
+                    cursor.execute("SELECT username from users ")  
+                    stored_data = cursor.fetchall()            
+                    cursor.close()  
+                    self.user_list.clear()  
+                    self.clearText()            
+                    for useritem in stored_data : self.user_list.addItems((useritem))
+                else:
+                    print("No!")
 
     def closedata(self):
         self.hide()
@@ -230,8 +360,7 @@ class userWindow(QDialog):
         self.eamil_input.setEnabled(True)
         self.mob_input.setEnabled(True)
         self.role_com.setEnabled(True)
-        if gusername.lower() == "admin" :
-            self.password_input.setEnabled(True)
+        if gusername.lower() == "admin" :             
             self.user_list.setEnabled(False)
 
     def disableText(self):
@@ -239,8 +368,7 @@ class userWindow(QDialog):
         self.eamil_input.setEnabled(False)
         self.mob_input.setEnabled(False)
         self.role_com.setEnabled(False)
-        if gusername.lower() == "admin" :
-            self.password_input.setEnabled(False)
+        if gusername.lower() == "admin" :            
             self.user_list.setEnabled(True)
 
 

@@ -1,0 +1,43 @@
+-- Table: public.hospitalreg
+
+-- DROP TABLE IF EXISTS public.hospitalreg;
+
+CREATE TABLE IF NOT EXISTS public.hospitalreg
+(
+    uuid uuid NOT NULL DEFAULT uuid_generate_v4(),
+    hospital_name character varying COLLATE pg_catalog."default" NOT NULL,
+    address character varying COLLATE pg_catalog."default" NOT NULL,
+    email character varying COLLATE pg_catalog."default" NOT NULL,
+    phone character varying COLLATE pg_catalog."default",
+    lic integer,
+    CONSTRAINT hospitalreg_pkey PRIMARY KEY (uuid)
+)
+WITH (
+    OIDS = FALSE
+)
+TABLESPACE pg_default;
+
+ALTER TABLE IF EXISTS public.hospitalreg
+    OWNER to postgres;
+
+-- Table: public.users
+
+-- DROP TABLE IF EXISTS public.users;
+
+CREATE TABLE IF NOT EXISTS public.users
+(
+    uuid uuid NOT NULL DEFAULT uuid_generate_v4(),
+    username character varying COLLATE pg_catalog."default" NOT NULL,
+    password character varying COLLATE pg_catalog."default" NOT NULL,
+    email character varying COLLATE pg_catalog."default" NOT NULL,
+    phone character varying COLLATE pg_catalog."default",
+    orole character varying COLLATE pg_catalog."default",
+    CONSTRAINT users_pkey PRIMARY KEY (uuid)
+)
+WITH (
+    OIDS = FALSE
+)
+TABLESPACE pg_default;
+
+ALTER TABLE IF EXISTS public.users
+    OWNER to postgres;
