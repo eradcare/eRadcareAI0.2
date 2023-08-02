@@ -8,6 +8,8 @@ import psycopg2.extras
 import uuid
 psycopg2.extras.register_uuid()
 import re  
+from training import trainingWindow
+from siteOAR import siteOARWindow
 
 regex = r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,7}\b'
 
@@ -606,38 +608,7 @@ class bSiteWindow(QDialog):
         self.bsite_input.setEnabled(False)
         self.remarks_input.setEnabled(False)
         self.user_list.setEnabled(True)
-    
-class trainingWindow(QDialog):
-    def __init__(self, parent=None):
-        super().__init__(parent)
-        self.setWindowTitle("eRadcareAI - Training OAR's")
-        self.resize(600,300)
-        self.setWindowIcon(QIcon("images/erai.png"))
-        global sitemode 
-        sitemode="None"
-
-        layout =  QGridLayout()
-        # Create vertical frame
-        vertical_frame = QFrame()
-        vertical_frame.setFrameShape(QFrame.StyledPanel)
-        vertical_layout = QVBoxLayout()
-        self.onlyInt = QIntValidator()
-
-        # Add details to vertical frame
-        self.bsite_label = QLabel('Site')
-        self.bsite_input = QComboBox()
-        self.remarks_label = QLabel('OAR')
-        self.remarks_input = QPlainTextEdit()
-        vertical_layout.addWidget(self.bsite_label)
-        vertical_layout.addWidget(self.bsite_input)
-        vertical_layout.addWidget(self.remarks_label)
-        vertical_layout.addWidget(self.remarks_input)        
-        vertical_frame.setLayout(vertical_layout)
-        layout.addWidget(vertical_frame,0,0)
-
-    
-    
-
+ 
 class CpassWindow(QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -795,7 +766,7 @@ class MainWindow(QMainWindow):
         self.setWindowTitle('eRadcareAI')
         self.resize(1200, 700)
 
-        label = QLabel('Welcome to eRadcareAI!', alignment=Qt.AlignCenter)
+        label = QLabel('eRadcareAI!', alignment=Qt.AlignCenter)
         label.setFont(QFont('Arial', 20))
         #slabel = QLabel('Personalized Radiotherapy Contouring' )
         #slabel.setFont(QFont('Arial', 14))        
@@ -816,22 +787,28 @@ class MainWindow(QMainWindow):
         cpass_action = QAction(QIcon("images/cpass.png"), "", self)
         euser_action = QAction(QIcon("images/user.png"), "", self)
         bsite_action = QAction(QIcon("images/bsite.png"),"",self)
+        siteOAR_action =QAction(QIcon("images/siteOAR.png"),"",self)
         training_action = QAction(QIcon("images/training.png"),"",self)
         button_action.setStatusTip("Hospital Registration")
         cpass_action.setStatusTip("Change your password")
         euser_action.setStatusTip("User Details")
         bsite_action.setStatusTip("Body Site")
+        siteOAR_action.setStatusTip("Site and OARs adding")
         training_action.setStatusTip("Training the Organ at Risks (OARS)")
         button_action.triggered.connect(self.open_child_window)
         cpass_action.triggered.connect(self.open_childwindow_cpass)
         euser_action.triggered.connect(self.open_childwindow_user)
         bsite_action.triggered.connect(self.open_childwindow_bsite)
+        siteOAR_action.triggered.connect(self.open_childwindow_siteOAR)
         training_action.triggered.connect(self.open_childwindow_training)
+
         button_action.setCheckable(True)
         toolbar.addAction(button_action)
         toolbar.addAction(cpass_action)
         toolbar.addAction(euser_action)
+        toolbar.addSeparator()
         toolbar.addAction(bsite_action)
+        toolbar.addAction(siteOAR_action)        
         toolbar.addSeparator()
         toolbar.addAction(training_action)
 
@@ -861,6 +838,10 @@ class MainWindow(QMainWindow):
 
     def open_childwindow_training(self):
         self.child_window = trainingWindow(self)
+        self.child_window.exec()
+    
+    def open_childwindow_siteOAR(self):
+        self.child_window = siteOARWindow(self)
         self.child_window.exec()
 
 
