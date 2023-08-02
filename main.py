@@ -21,9 +21,6 @@ conn  = psycopg2.connect(
         host="localhost",
         port="5432",
     )
-
- 
-
 # Function to check if the provided username and password match the database
 def check_credentials(username, password):    
     cursor = conn.cursor()
@@ -371,6 +368,275 @@ class userWindow(QDialog):
         if gusername.lower() == "admin" :            
             self.user_list.setEnabled(True)
 
+class bSiteWindow(QDialog):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("eRadcareAI - BodySite")
+        self.resize(600,300)
+        self.setWindowIcon(QIcon("images/erai.png"))
+        global sitemode 
+        sitemode="None"
+
+        layout =  QGridLayout()
+        # Create vertical frame
+        vertical_frame = QFrame()
+        vertical_frame.setFrameShape(QFrame.StyledPanel)
+        vertical_layout = QVBoxLayout()
+        self.onlyInt = QIntValidator()
+
+        # Add details to vertical frame
+        self.bsite_label = QLabel('Site')
+        self.bsite_input = QLineEdit()
+        self.remarks_label = QLabel('Remarks')
+        self.remarks_input = QPlainTextEdit()
+        vertical_layout.addWidget(self.bsite_label)
+        vertical_layout.addWidget(self.bsite_input)
+        vertical_layout.addWidget(self.remarks_label)
+        vertical_layout.addWidget(self.remarks_input)        
+        vertical_frame.setLayout(vertical_layout)
+        layout.addWidget(vertical_frame,0,0)
+         # Create horizontal frame
+        horizontal_frame = QFrame()
+        horizontal_frame.setFrameShape(QFrame.StyledPanel)
+        horizontal_layout = QHBoxLayout()
+        self.add_button = QPushButton('Add')
+        self.delete_button = QPushButton("Delete")  
+        self.update_button = QPushButton("Update")
+        self.add_button.clicked.connect(self.adddata)
+        self.delete_button.clicked.connect(self.deletedata)        
+        self.update_button.clicked.connect(self.updatedata)        
+        horizontal_layout.addWidget(self.add_button)
+        horizontal_layout.addWidget(self.delete_button)
+        horizontal_layout.addWidget(self.update_button)        
+        horizontal_frame.setLayout(horizontal_layout)
+        layout.addWidget(horizontal_frame,1,0)
+            #list frame
+            # Create horizontal frame
+        list_frame = QFrame()
+        list_frame.setFrameShape(QFrame.StyledPanel)
+        list_layout = QHBoxLayout()
+
+        self.user_list = QListWidget()
+        cursor = conn.cursor()
+        cursor.execute("SELECT bsite_name from bsite ")  
+        stored_data = cursor.fetchall()            
+        cursor.close()
+        for useritem in stored_data : self.user_list.addItems((useritem))
+        self.user_list.itemClicked.connect(self.listclick)
+        list_layout.addWidget(self.user_list)
+        list_frame.setLayout(list_layout)
+        layout.addWidget(list_frame,0,1)
+        self.disableText()
+
+        #update and reset button
+        # Create horizontal frame
+        close_frame = QFrame()
+        close_frame.setFrameShape(QFrame.StyledPanel)
+        close_layout = QHBoxLayout()
+        self.close_button = QPushButton('Close')        
+        self.close_button.clicked.connect(self.closedata)
+        close_layout.addWidget(self.close_button)
+        close_frame.setLayout(close_layout)
+        layout.addWidget(close_frame,1,1)
+
+        self.setLayout(layout)
+        self.center_window()
+
+    def updatedata(self):   
+        global sitemode      
+        
+        siteallow1 =0
+
+
+        if len(self.bsite_input.text()) == 0 and self.update_button.text() == "Update":
+            dlg = QMessageBox.critical(self,"eRadcareAI","Site name should not empty")
+            siteallow1=1
+
+        if len(self.bsite_input.text()) != 0 and self.update_button.text() == "Update" and siteallow1 == 0:          
+            self.update_button.setText("Save")
+            self.delete_button.setText("Cancel")
+            self.close_button.setEnabled(False)            
+            self.add_button.setEnabled(False)
+            sitemode = self.bsite_input.text()
+            self.enableText()             
+            siteallow1 =1 
+        
+        if self.update_button.text() =="Save" and siteallow1 ==0 :       
+
+            if len(self.bsite_input.text()) == 0 :
+                dlg = QMessageBox.critical(self,"eRadcareAI","Site details should not be empty")                
+                siteallow1 =1
+            cursor = conn.cursor()
+            cursor.execute("SELECT bsite_name FROM bsite WHERE bsite_name = %s ", (self.bsite_input.text(), )) 
+            stored_data = cursor.fetchall()          
+            cursor.close()
+
+            if sitemode != self.bsite_input.text() and len(stored_data) >= 1 :
+                dlg = QMessageBox.critical(self,"eRadcareAI","Site details should not be empty")
+                self.bsite_input.setFocus()
+                siteallow =1
+
+            if siteallow1 == 0  :
+                cursor = conn.cursor()
+                cursor.execute("UPDATE bsite  SET bsite_name =%s , remarks=%s" ,(self.bsite_input.text(),self.remarks_input.toPlainText())) 
+                conn.commit()
+                cursor.execute("SELECT bsite_name from bsite ")  
+                stored_data = cursor.fetchall()            
+                cursor.close()  
+                self.user_list.clear()  
+                self.clearText()            
+                for useritem in stored_data : self.user_list.addItems((useritem))
+                dlg = QMessageBox.information(self,"eRadcareAI","The data updated")                 
+                
+                self.clearData()
+                self.add_button.setEnabled(True)
+                self.update_button.setText("Update")
+
+    def listclick(self, idx: int):        
+        listname=([item.text() for item in self.user_list.selectedItems()])
+        ls = ""
+        ln = ls.join(listname)         
+        self.bsite_input.setText(ls.join(listname))
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM bsite WHERE bsite_name = %s ", (ln, ))  
+        stored_data = cursor.fetchone()           
+        self.remarks_input.setPlainText(stored_data[2])
+        
+    def adddata(self) :
+
+        siteallow5 =0 
+        global sitemode
+
+        if self.add_button.text() == "Save":        
+            if len(self.bsite_input.text()) == 0 :
+                dlg = QMessageBox.critical(self,"eRadcareAI","Site details should not be empty")
+                self.bsite_input.setFocus()
+                siteallow5 =1
+
+        if siteallow5 == 0 and self.add_button.text() == "Save"  :            
+            cursor = conn.cursor()
+            cursor.execute("SELECT bsite_name FROM bsite WHERE bsite_name = %s ", (self.bsite_input.text(), )) 
+            stored_data = cursor.fetchall()           
+            #print(stored_data)
+
+            if sitemode=="add" and len(stored_data) >= 1 :
+                print ( "duplicate data")
+                dlg = QMessageBox.critical(self,"eRadcareAI", "Site name shoud be Unique" )
+            if sitemode=="add" and len(stored_data) == 0 :
+                cursor.execute("INSERT INTO bsite( uuid,bsite_name,remarks) VALUES ( %s,%s,%s)",( uuid.uuid4(),self.bsite_input.text(),self.remarks_input.toPlainText()))
+                conn.commit()
+                cursor.close()
+                self.user_list.addItem(self.bsite_input.text())  
+                self.clearData() 
+                siteallow5 = 3                           
+                dlg = QMessageBox.information(self,"eRadcareAI","The new site data Added")                
+                sitemode="None"
+                print("before",siteallow5)
+
+        if  siteallow5 !=3 and self.add_button.text() == "Add":
+            self.add_button.setText("Save")
+            self.delete_button.setText("Cancel")
+            self.close_button.setEnabled(False)
+            self.update_button.setEnabled(False)            
+            self.enableText()            
+            self.clearText()
+            sitemode="add"
+            
+
+    def clearData(self) :
+                self.clearText()
+                self.add_button.setText("Add")
+                self.delete_button.setText("Delete")
+                self.update_button.setEnabled(True)                
+                self.close_button.setEnabled(True)
+                self.disableText()
+
+    def clearText(self):
+        self.bsite_input.setText("")
+        self.remarks_input.setPlainText("")
+        
+    def deletedata(self):
+        siteallow3 =0
+        if self.delete_button.text() =="Cancel" :
+            self.clearData() 
+            siteallow3=1
+        if siteallow3 == 0 and self.delete_button.text() == "Delete" :
+            if len(self.bsite_input.text()) == 0:
+                dlg = QMessageBox.critical(self,"eRadcareAI","Site name should not empty")
+            else :
+                dlg = QMessageBox(self)
+                dlg.setWindowTitle("eRadcareAI!")
+                dlg.setText("Shall I delete?")
+                dlg.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
+                dlg.setIcon(QMessageBox.Question)
+                button = dlg.exec()
+
+                if button == QMessageBox.Yes:
+                    cursor = conn.cursor()
+                    cursor.execute("Delete FROM bsite WHERE bsite_name = %s ", (self.bsite_input.text(), )) 
+                    conn.commit()
+                    cursor.close()
+                    dlg = QMessageBox.critical(self,"eRadcareAI","Site deleted")
+                    cursor = conn.cursor()
+                    cursor.execute("SELECT bsite_name from bsite ")  
+                    stored_data = cursor.fetchall()            
+                    cursor.close()  
+                    self.user_list.clear()  
+                    self.clearText()            
+                    for useritem in stored_data : self.user_list.addItems((useritem))
+                else:
+                    print("No!")
+
+    def closedata(self):
+        self.hide()
+    
+    def center_window(self):
+        screen_geometry = QGuiApplication.primaryScreen().availableGeometry()
+        window_geometry = self.frameGeometry()
+        x = screen_geometry.width() // 2 - window_geometry.width() // 2
+        y = screen_geometry.height() // 2 - window_geometry.height() // 2
+        self.move(x, y)
+    
+    def enableText(self):
+        self.bsite_input.setEnabled(True)
+        self.remarks_input.setEnabled(True)        
+        self.user_list.setEnabled(False)
+
+    def disableText(self):
+        self.bsite_input.setEnabled(False)
+        self.remarks_input.setEnabled(False)
+        self.user_list.setEnabled(True)
+    
+class trainingWindow(QDialog):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("eRadcareAI - Training OAR's")
+        self.resize(600,300)
+        self.setWindowIcon(QIcon("images/erai.png"))
+        global sitemode 
+        sitemode="None"
+
+        layout =  QGridLayout()
+        # Create vertical frame
+        vertical_frame = QFrame()
+        vertical_frame.setFrameShape(QFrame.StyledPanel)
+        vertical_layout = QVBoxLayout()
+        self.onlyInt = QIntValidator()
+
+        # Add details to vertical frame
+        self.bsite_label = QLabel('Site')
+        self.bsite_input = QComboBox()
+        self.remarks_label = QLabel('OAR')
+        self.remarks_input = QPlainTextEdit()
+        vertical_layout.addWidget(self.bsite_label)
+        vertical_layout.addWidget(self.bsite_input)
+        vertical_layout.addWidget(self.remarks_label)
+        vertical_layout.addWidget(self.remarks_input)        
+        vertical_frame.setLayout(vertical_layout)
+        layout.addWidget(vertical_frame,0,0)
+
+    
+    
 
 class CpassWindow(QDialog):
     def __init__(self, parent=None):
@@ -543,22 +809,31 @@ class MainWindow(QMainWindow):
         
 
         toolbar = QToolBar("maintoolbar")
-        toolbar.setIconSize(QSize(16,16))
+        toolbar.setIconSize(QSize(25,25))
         self.addToolBar(toolbar)
 
         button_action = QAction(QIcon("images/hospital.png"), "", self)
         cpass_action = QAction(QIcon("images/cpass.png"), "", self)
         euser_action = QAction(QIcon("images/user.png"), "", self)
+        bsite_action = QAction(QIcon("images/bsite.png"),"",self)
+        training_action = QAction(QIcon("images/training.png"),"",self)
         button_action.setStatusTip("Hospital Registration")
         cpass_action.setStatusTip("Change your password")
         euser_action.setStatusTip("User Details")
+        bsite_action.setStatusTip("Body Site")
+        training_action.setStatusTip("Training the Organ at Risks (OARS)")
         button_action.triggered.connect(self.open_child_window)
         cpass_action.triggered.connect(self.open_childwindow_cpass)
         euser_action.triggered.connect(self.open_childwindow_user)
+        bsite_action.triggered.connect(self.open_childwindow_bsite)
+        training_action.triggered.connect(self.open_childwindow_training)
         button_action.setCheckable(True)
         toolbar.addAction(button_action)
         toolbar.addAction(cpass_action)
         toolbar.addAction(euser_action)
+        toolbar.addAction(bsite_action)
+        toolbar.addSeparator()
+        toolbar.addAction(training_action)
 
         self.setStatusBar(QStatusBar(self))
 
@@ -578,6 +853,14 @@ class MainWindow(QMainWindow):
 
     def open_childwindow_user(self):
         self.child_window = userWindow(self)
+        self.child_window.exec()
+    
+    def open_childwindow_bsite(self):
+        self.child_window = bSiteWindow(self)
+        self.child_window.exec()
+
+    def open_childwindow_training(self):
+        self.child_window = trainingWindow(self)
         self.child_window.exec()
 
 
@@ -634,7 +917,7 @@ class LoginWindow(QMainWindow):
         widget = QWidget()
         widget.setLayout(layout_main)
         self.setCentralWidget(widget)
-        #self.center_window()  # Center the window on the screen
+        self.center_window()  # Center the window on the screen
 
         # ... (rest of the implementation remains the same) ...
 

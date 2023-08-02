@@ -1,3 +1,5 @@
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+
 -- Table: public.hospitalreg
 
 -- DROP TABLE IF EXISTS public.hospitalreg;
@@ -20,6 +22,11 @@ TABLESPACE pg_default;
 ALTER TABLE IF EXISTS public.hospitalreg
     OWNER to postgres;
 
+
+INSERT INTO public.hospitalreg(
+	uuid, hospital_name, address, email, phone, lic)
+	VALUES (uuid_generate_v4(), 'ABC Hospital', 'Chennai', 'apichu@gmail.com', '9611803059', 2);
+
 -- Table: public.users
 
 -- DROP TABLE IF EXISTS public.users;
@@ -40,4 +47,27 @@ WITH (
 TABLESPACE pg_default;
 
 ALTER TABLE IF EXISTS public.users
+    OWNER to postgres;
+
+INSERT INTO public.users(
+	uuid, username, password, email, phone, orole)
+	VALUES (uuid_generate_v4(), 'admin', 'pass', 'apichu@gmail.com', '9611803059', 'Medical Physicist');
+
+-- Table: public.bsite
+
+-- DROP TABLE IF EXISTS public.bsite;
+
+CREATE TABLE IF NOT EXISTS public.bsite
+(
+    uuid uuid NOT NULL DEFAULT uuid_generate_v4(),
+    bsite_name character varying COLLATE pg_catalog."default" NOT NULL,
+    remarks character varying COLLATE pg_catalog."default",
+    CONSTRAINT bsite_pkey PRIMARY KEY (uuid)
+)
+WITH (
+    OIDS = FALSE
+)
+TABLESPACE pg_default;
+
+ALTER TABLE IF EXISTS public.bsite
     OWNER to postgres;
